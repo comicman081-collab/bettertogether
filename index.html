@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ko">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<title>BETTER TOGETHER</title>
+		<style>
+:root {
+	--ground: #1f1712;
+	--ink: #f6ead9;
+	--muted: #c9b39a;
+	--accent: #e2b07a;
+	--track: #3a2a20;
+	--alert: #5b3943;
+}
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+html, body {
+	height: 100%;
+}
+body {
+	color: var(--ink);
+	background-color: var(--ground);
+	overflow: hidden;
+	touch-action: none;
+	font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans', sans-serif;
+}
+#canvas {
+	display: block;
+}
+#canvas:focus {
+	outline: none;
+}
+#status {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 1.25rem;
+	padding: 0 16px;
+	background: radial-gradient(ellipse at 50% 40%, #3b2a1f 0%, var(--ground) 70%);
+	text-align: center;
+}
+#status h1 {
+	margin: 0;
+	font-family: 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif;
+	font-weight: 500;
+	font-size: clamp(2rem, 6vw, 4rem);
+	letter-spacing: 0.12em;
+	color: var(--accent);
+}
+#status-text {
+	margin: 0;
+	color: var(--muted);
+	font-size: 1rem;
+	font-variant-numeric: tabular-nums;
+	min-height: 1.5em;
+}
+#status-bar {
+	width: min(32rem, 80vw);
+	height: 6px;
+	border-radius: 3px;
+	background: var(--track);
+	overflow: hidden;
+}
+#status-fill {
+	height: 100%;
+	width: 0%;
+	background: var(--accent);
+	transition: width 0.2s linear;
+}
+#start {
+	display: none;
+	padding: 0.85rem 2.6rem;
+	border-radius: 999px;
+	border: 1px solid var(--accent);
+	background: #3a2a20;
+	color: var(--ink);
+	font: inherit;
+	font-size: 1.15rem;
+	letter-spacing: 0.08em;
+	cursor: pointer;
+}
+#start:hover, #start:focus-visible {
+	background: #4a3628;
+	outline: none;
+}
+#status-notice {
+	display: none;
+	max-width: 36rem;
+	padding: 1rem;
+	border-radius: 0.5rem;
+	background: var(--alert);
+	line-height: 1.5;
+	white-space: pre-line;
+}
+#status small {
+	color: var(--muted);
+	opacity: 0.8;
+	font-size: 0.8rem;
+}
+/* Claude 2026-10-06 (release_04): the game is a 16:9 landscape stage; a phone held upright gets a rotate hint (a tap
+   closes it for players whose rotation is locked). */
+#rotate {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0 16px;
+	background: rgba(31, 23, 18, 0.94);
+	text-align: center;
+}
+#rotate p {
+	margin: 0;
+}
+#rotate .rotate-title {
+	color: var(--accent);
+	font-size: 1.25rem;
+	font-weight: 700;
+}
+#rotate .rotate-sub {
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+@media (orientation: portrait) and (pointer: coarse) {
+	#rotate:not(.dismissed) {
+		display: flex;
+	}
+}
+		</style>
+		
+	</head>
+	<body>
+		<canvas id="canvas">
+			이 브라우저는 canvas를 지원하지 않습니다.
+		</canvas>
+
+		<noscript>
+			JavaScript를 켜야 게임을 실행할 수 있습니다.
+		</noscript>
+
+		<div id="status">
+			<h1>BETTER TOGETHER</h1>
+			<div id="status-bar"><div id="status-fill"></div></div>
+			<p id="status-text">불러오는 중…</p>
+			<button id="start" type="button">시작하기</button>
+			<div id="status-notice"></div>
+			<small>데스크톱 Chrome·Edge·Firefox 권장 · 첫 실행은 약 454 MB를 내려받습니다</small>
+		</div>
+
+		<div id="rotate">
+			<p class="rotate-title">화면을 가로로 돌려 주세요</p>
+			<p class="rotate-sub">가로 화면에서 게임이 화면 가득 보입니다 · 탭하면 닫힙니다</p>
+		</div>
+
+		<script src="index.js"></script>
+		<script>
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":1673172,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_THREADS_ENABLED = false;
+// Claude 2026-10-05: the game's pictures, voices and videos ship as extra packs that the page downloads into the
+// engine's in-memory file system before the engine starts (WebPacks mounts them). Filled in by the build.
+const BT_PACKS = [{"file": "bt_01.pck", "size": 94447228}, {"file": "bt_02.pck", "size": 94969700}, {"file": "bt_03.pck", "size": 85694640}, {"file": "bt_04.pck", "size": 93958380}, {"file": "bt_05.pck", "size": 65208504}];
+
+// Claude 2026-10-05 (release_03): the engine sizes its canvas by devicePixelRatio, so a retina Mac or a phone drew every
+// full-screen stage and glass pass at 2-3x the game's 1920x1080 design density. The ratio the engine sees is capped so
+// one design pixel gets at most 1 device pixel (0.66 on touch screens); never below 1 CSS pixel per pixel.
+(function () {
+	const nativeRatio = window.devicePixelRatio || 1;
+	const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+	const cap = coarse ? 0.66 : 1.0;
+	try {
+		Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: function () {
+			const fit = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+			return fit > 0 ? Math.min(nativeRatio, Math.max(1, cap / fit)) : nativeRatio;
+		} });
+	} catch (error) {
+		// Keep the native ratio when the browser refuses the override.
+	}
+}());
+
+(function () {
+	const statusOverlay = document.getElementById('status');
+	const statusFill = document.getElementById('status-fill');
+	const statusText = document.getElementById('status-text');
+	const statusNotice = document.getElementById('status-notice');
+	const startButton = document.getElementById('start');
+	const engine = new Engine(Object.assign({}, GODOT_CONFIG, {
+		'onProgress': function (current, total) {
+			wasmLoaded = Math.min(current, wasmBytes);
+			showProgress();
+		},
+	}));
+
+	const packBytes = BT_PACKS.reduce((sum, pack) => sum + pack.size, 0);
+	const wasmBytes = GODOT_CONFIG.fileSizes[`${GODOT_CONFIG.executable}.wasm`] || 0;
+	const totalBytes = packBytes + wasmBytes;
+	let loadedPacks = 0;
+	let wasmLoaded = 0;
+
+	function showProgress() {
+		const done = Math.min(totalBytes, loadedPacks + wasmLoaded);
+		const ratio = totalBytes > 0 ? done / totalBytes : 0;
+		statusFill.style.width = `${(ratio * 100).toFixed(1)}%`;
+		statusText.textContent = `불러오는 중… ${(done / 1048576).toFixed(0)} / ${(totalBytes / 1048576).toFixed(0)} MB`;
+	}
+
+	function fail(err) {
+		console.error(err);
+		statusNotice.textContent = '게임을 불러오지 못했습니다.\n' + (err instanceof Error ? err.message : String(err))
+			+ '\n페이지를 새로 고치거나 다른 브라우저(데스크톱 Chrome·Edge·Firefox)로 열어 주세요.';
+		statusNotice.style.display = 'block';
+		startButton.style.display = 'none';
+	}
+
+	async function fetchPack(pack) {
+		const response = await fetch(pack.file, { credentials: 'same-origin' });
+		if (!response.ok) {
+			throw new Error(`${pack.file}: ${response.status}`);
+		}
+		const buffer = new Uint8Array(pack.size);
+		const reader = response.body.getReader();
+		let offset = 0;
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) {
+				break;
+			}
+			if (offset + value.length > buffer.length) {
+				throw new Error(`${pack.file}: size differs from the build record`);
+			}
+			buffer.set(value, offset);
+			offset += value.length;
+			loadedPacks += value.length;
+			showProgress();
+		}
+		if (offset !== pack.size) {
+			throw new Error(`${pack.file}: incomplete download (${offset} / ${pack.size})`);
+		}
+		return buffer;
+	}
+
+	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	if (missing.length !== 0) {
+		fail(new Error('이 브라우저에 없는 기능: ' + missing.join(', ')));
+		return;
+	}
+
+	showProgress();
+	engine.init(GODOT_CONFIG.executable).then(async () => {
+		wasmLoaded = wasmBytes;
+		for (const pack of BT_PACKS) {
+			const bytes = await fetchPack(pack);
+			engine.copyToFS('/' + pack.file, bytes.buffer);
+		}
+		statusFill.style.width = '100%';
+		statusText.textContent = '준비됐습니다. 소리가 함께 재생됩니다.';
+		startButton.style.display = 'inline-block';
+		startButton.focus();
+	}).catch(fail);
+
+	// Claude 2026-10-06 (release_04, user: "모바일 전체화면으로 실행되게"): on a touch screen the Start tap also asks for
+	// full screen and a landscape lock. Both need this tap's user activation, so they run before the engine starts; a
+	// browser that refuses (iPhone Safari has no element full screen) simply keeps the page as it is.
+	const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+	const rotateHint = document.getElementById('rotate');
+	rotateHint.addEventListener('click', () => rotateHint.classList.add('dismissed'));
+
+	function lockLandscape() {
+		try {
+			if (screen.orientation && screen.orientation.lock) {
+				screen.orientation.lock('landscape').catch(() => {});
+			}
+		} catch (error) {
+			// Orientation lock is optional.
+		}
+	}
+
+	function enterFullscreen() {
+		const root = document.documentElement;
+		const request = root.requestFullscreen || root.webkitRequestFullscreen;
+		if (!coarse || !request || document.fullscreenElement || document.webkitFullscreenElement) {
+			return;
+		}
+		try {
+			const result = request.call(root, { navigationUI: 'hide' });
+			if (result && typeof result.then === 'function') {
+				result.then(lockLandscape, () => {});
+			} else {
+				lockLandscape();
+			}
+		} catch (error) {
+			// Full screen is optional.
+		}
+	}
+
+	startButton.addEventListener('click', () => {
+		enterFullscreen();
+		startButton.disabled = true;
+		statusText.textContent = '시작하는 중…';
+		engine.startGame({}).then(() => {
+			statusOverlay.remove();
+		}, fail);
+	});
+}());
+		</script>
+	</body>
+</html>
+
